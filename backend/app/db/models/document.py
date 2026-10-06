@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
 
 from app.db.database import Base
 
@@ -9,7 +9,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
+    user_id = Column(Integer,ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     storage_path = Column(String, nullable=False)
     file_type = Column(String, nullable=False)
