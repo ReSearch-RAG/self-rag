@@ -8,3 +8,7 @@ pgvector
 alembic
 
 google-genai
+
+boto3
+pypdf
+pdfplumber
