@@ -1,8 +1,8 @@
 from functools import lru_cache
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from app.generation.answer_generator import generate_answer
+from app.schemas.query import AnswerResponse
 from app.db.database import get_db
 from app.db.models.document import Document
 from app.ingestion.embedder import Embedder
@@ -137,6 +137,84 @@ def self_correcting_search(
             )
             for chunk, score in result.chunks
         ],
+        is_sufficient=result.evaluation.is_sufficient,
+        relevance_score=result.evaluation.relevance_score,
+        coverage_score=result.evaluation.coverage_score,
+        missing_information=result.evaluation.missing_information,
+        evaluation_reason=result.evaluation.reason,
+        attempts=result.attempts,
+    )
+@router.post("/answer", response_model=AnswerResponse)
+def answer_document_question(
+    request: RetrievalRequest,
+    db: Session = Depends(get_db),
+) -> AnswerResponse:
+    document = (
+        db.query(Document)
+        .filter(Document.id == request.document_id)
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
+        )
+
+    query = request.query.strip()
+
+    if not query:
+        raise HTTPException(
+            status_code=422,
+            detail="Query must not be empty",
+        )
+
+    try:
+        result = run_query_retrieval(
+            db=db,
+            query=query,
+            document_id=request.document_id,
+            top_k=request.top_k,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+    citations = [
+        RetrievedChunk(
+            chunk_id=chunk.id,
+            text=chunk.text,
+            page_number=chunk.page_number,
+            section=chunk.section,
+            score=score,
+        )
+        for chunk, score in result.chunks
+    ]
+
+    if not result.chunks or not result.evaluation.is_sufficient:
+        answer = (
+            "I cannot provide a reliable answer from the retrieved "
+            "evidence. " + result.evaluation.reason
+        )
+    else:
+        try:
+            answer = generate_answer(
+                query=query,
+                chunks=result.chunks,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="Answer generation failed. Check the Gemini configuration.",
+            ) from exc
+
+    return AnswerResponse(
+        document_id=request.document_id,
+        query=query,
+        answer=answer,
+        citations=citations,
         is_sufficient=result.evaluation.is_sufficient,
         relevance_score=result.evaluation.relevance_score,
         coverage_score=result.evaluation.coverage_score,
