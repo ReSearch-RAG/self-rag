@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,12 +12,25 @@ class RetrievalRequest(BaseModel):
 class RetrievedChunk(BaseModel):
     chunk_id: int
     text: str
-    page_number: int | None
-    section: str | None
+    page_number: Optional[int]
+    section: Optional[str]
     score: float
 
 
 class RetrievalResponse(BaseModel):
     document_id: int
     query: str
-    results: list[RetrievedChunk]
+    results: List[RetrievedChunk]
+
+
+class SelfCorrectingRetrievalResponse(BaseModel):
+    document_id: int
+    query: str
+    subqueries: List[str]
+    results: List[RetrievedChunk]
+    is_sufficient: bool
+    relevance_score: float
+    coverage_score: float
+    missing_information: List[str]
+    evaluation_reason: str
+    attempts: int
