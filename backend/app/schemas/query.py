@@ -1,5 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
 from pydantic import BaseModel, Field
+
 
 class RetrievalRequest(BaseModel):
     document_id: int = Field(gt=0)
@@ -33,6 +35,21 @@ class SelfCorrectingRetrievalResponse(BaseModel):
     evaluation_reason: str
     attempts: int
 
+
+class ClaimVerificationResult(BaseModel):
+    claim: str
+    verdict: str
+    supporting_chunk_ids: List[int]
+    contradicting_chunk_ids: List[int]
+    explanation: str
+
+
+class ConflictDetectionResult(BaseModel):
+    has_conflict: bool
+    conflicting_chunk_pairs: List[Tuple[int, int]]
+    explanation: str
+
+
 class AnswerResponse(BaseModel):
     document_id: int
     query: str
@@ -44,3 +61,7 @@ class AnswerResponse(BaseModel):
     missing_information: List[str]
     evaluation_reason: str
     attempts: int
+    claim_verifications: List[ClaimVerificationResult] = Field(
+        default_factory=list
+    )
+    conflict_detection: Optional[ConflictDetectionResult] = None
