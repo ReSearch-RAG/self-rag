@@ -1,25 +1,23 @@
 from datetime import datetime
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models.document import Document
-
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 class DocumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     filename: str
     file_type: str
     status: str
     created_at: datetime
-
-    class Config:
-        orm_mode = True
 
 
 @router.get("/", response_model=List[DocumentResponse])
