@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.api.routes.documents import router as documents_router
 from app.api.routes.queries import router as queries_router
-
+from app.api.routes.chat import router as chat_router
 app = FastAPI(
     title="Self-Correcting RAG",
     description="Evaluation-driven Retrieval-Augmented Generation system",
@@ -10,7 +10,7 @@ app = FastAPI(
 
 app.include_router(documents_router)
 app.include_router(queries_router)
-
+app.include_router(chat_router)
 
 @app.get("/health")
 def health_check():
