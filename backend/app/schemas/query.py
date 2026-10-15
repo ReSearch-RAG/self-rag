@@ -1,7 +1,5 @@
 from typing import List, Optional
-
 from pydantic import BaseModel, Field
-
 
 class RetrievalRequest(BaseModel):
     document_id: int = Field(gt=0)
@@ -28,6 +26,18 @@ class SelfCorrectingRetrievalResponse(BaseModel):
     query: str
     subqueries: List[str]
     results: List[RetrievedChunk]
+    is_sufficient: bool
+    relevance_score: float
+    coverage_score: float
+    missing_information: List[str]
+    evaluation_reason: str
+    attempts: int
+
+class AnswerResponse(BaseModel):
+    document_id: int
+    query: str
+    answer: str
+    citations: List[RetrievedChunk]
     is_sufficient: bool
     relevance_score: float
     coverage_score: float
