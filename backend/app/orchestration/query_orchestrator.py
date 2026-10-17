@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.correction.query_decomposer import decompose_query
 from app.correction.query_rewriter import rewrite_query
 from app.db.models.chunk import Chunk
+from app.generation.llm import generate_text
+from app.generation.llm import generate_text
 from app.evaluation.retrieval_evaluator import (
     RetrievalEvaluation,
     evaluate_retrieval,
@@ -96,6 +98,7 @@ def run_query_retrieval(
     try:
         subqueries = decompose_query(
             original_query,
+            generate=generate_text,
             max_subqueries=max_subqueries,
         )
     except Exception:
