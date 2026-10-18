@@ -1,23 +1,33 @@
 # Self-RAG frontend
 
-The frontend is a React, TypeScript, and Vite workspace with a conversation
-view and a documents view. It currently checks the backend health endpoint;
-chat and document APIs are not implemented yet, so the interface does not
-display sample content or simulate responses.
+The React, TypeScript, and Vite workspace connects the documents and chat
+pages to the FastAPI backend. Documents are loaded from the backend; uploads
+and answers are not simulated.
 
 ## Development
+
+Start the FastAPI application on port `8009`, then run:
 
 ```sh
 npm install
 npm run dev
 ```
 
-The Vite development server proxies `/health` to `http://localhost:8000`.
-Set `VITE_API_URL` to the backend base URL when it is hosted elsewhere.
+Vite proxies `/health`, `/documents`, `/chat`, and `/queries` to
+`http://localhost:8009`. Set `VITE_API_URL` to a backend base URL to bypass
+the proxy. Cross-origin direct requests require the backend to allow the
+frontend origin; the current FastAPI application does not configure CORS.
+
+The upload endpoint requires an existing integer `user_id`. Enter that ID in
+the documents page; the backend currently provides no user registration or
+user lookup endpoint. Chat is enabled only for documents whose backend status
+is `processed`. The chat response does not include citations, and the backend
+does not persist conversation history.
 
 ## Checks
 
 ```sh
+npx tsc --noEmit
 npm run build
 npm run lint
 ```
