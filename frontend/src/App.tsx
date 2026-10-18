@@ -5,20 +5,25 @@ import { Sidebar } from './components/sidebar'
 import { ChatPage } from './pages/chat'
 import { DocumentsPage } from './pages/documents'
 import { getHealth } from './services/api'
-import type { ApiStatus, Page } from './types'
+import type { ApiStatus, Document, Page } from './types'
 
 function App() {
   const [page, setPage] = useState<Page>('chat')
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(
+    null,
+  )
 
   useEffect(() => {
     let active = true
 
     const checkHealth = async () => {
       try {
-        await getHealth()
-        if (active) setApiStatus('online')
+        const health = await getHealth()
+        if (active) {
+          setApiStatus(health.status === 'healthy' ? 'online' : 'offline')
+        }
       } catch {
         if (active) setApiStatus('offline')
       }
@@ -51,7 +56,19 @@ function App() {
           isMenuOpen={sidebarOpen}
           onMenuClick={() => setSidebarOpen((open) => !open)}
         />
-        {page === 'chat' ? <ChatPage /> : <DocumentsPage />}
+        {page === 'chat' ? (
+          <ChatPage
+            onBrowseDocuments={() => setPage('documents')}
+            selectedDocument={selectedDocument}
+          />
+        ) : (
+          <DocumentsPage
+            onSelectDocument={(document) => {
+              setSelectedDocument(document)
+              setPage('chat')
+            }}
+          />
+        )}
       </main>
     </div>
   )
