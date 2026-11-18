@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.auth.security import decode_access_token
 from app.db.database import get_db
@@ -33,7 +34,7 @@ def get_current_user(
 
     try:
         payload = decode_access_token(token)
-        user_id: int | None = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError:
