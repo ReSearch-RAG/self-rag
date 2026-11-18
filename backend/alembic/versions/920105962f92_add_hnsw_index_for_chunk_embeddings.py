@@ -1,7 +1,7 @@
 """add HNSW index for chunk embeddings
 
 Revision ID: 920105962f92
-Revises: c2d94e9d29e2
+Revises: a7f2c3d4e5b1
 Create Date: 2026-10-11 22:55:14.092552
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '920105962f92'
-down_revision: Union[str, Sequence[str], None] = 'c2d94e9d29e2'
+down_revision: Union[str, Sequence[str], None] = 'a7f2c3d4e5b1'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
