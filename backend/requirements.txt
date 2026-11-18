@@ -1,19 +1,30 @@
+# Web framework
 fastapi
 uvicorn[standard]
 python-dotenv
 python-multipart
 
+# Database
 sqlalchemy
 psycopg[binary]
 pgvector
 alembic
 
+# AI / LLM
 google-genai
 
+# Embeddings & reranking
+sentence-transformers
+FlagEmbedding
+
+# Cloud storage
 boto3
+
+# PDF parsing
 pypdf
 pdfplumber
 
+# Auth
 python-jose[cryptography]
 passlib[bcrypt]
 bcrypt
