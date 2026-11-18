@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -13,3 +15,31 @@ class ChatResponse(BaseModel):
     answer: str
     is_sufficient: bool
     attempts: int
+    is_conversational: bool = False
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: str
+    is_sufficient: Optional[bool] = None
+    attempts: Optional[int] = None
+
+
+class ChatHistoryResponse(BaseModel):
+    document_id: int
+    messages: list[ChatMessageResponse]
+
+
+class ConversationSummary(BaseModel):
+    conversation_id: int
+    document_id: int
+    document_name: str
+    title: str
+    preview: str
+    updated_at: str
+    message_count: int
+
+
+class ConversationListResponse(BaseModel):
+    conversations: list[ConversationSummary]
