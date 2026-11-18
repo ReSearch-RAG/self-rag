@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { sendChatMessage } from '../services/api'
+import { getChatHistory, sendChatMessage } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import type { ChatMessage, Document } from '../types'
 
@@ -84,6 +84,7 @@ export function ChatPage({ selectedDocument, onBrowseDocuments }: ChatPageProps)
           content: response.answer,
           isSufficient: response.is_sufficient,
           attempts: response.attempts,
+          isConversational: response.is_conversational,
         },
       ])
     } catch (requestError) {
@@ -93,6 +94,46 @@ export function ChatPage({ selectedDocument, onBrowseDocuments }: ChatPageProps)
       setIsSending(false)
     }
   }
+
+  // Load persisted history whenever the selected document changes
+  useEffect(() => {
+    if (!selectedDocument || !token) {
+      setMessages([])
+      return
+    }
+
+    let active = true
+    nextMessageId.current = 0
+    setMessages([])
+
+    getChatHistory(selectedDocument.id, token)
+      .then((history) => {
+        if (!active) return
+        const restored = history.messages.map((item) => ({
+          id: ++nextMessageId.current,
+          role: item.role,
+          content: item.content,
+          isSufficient:
+            item.is_sufficient === null || item.is_sufficient === undefined
+              ? undefined
+              : item.is_sufficient,
+          attempts:
+            item.attempts === null || item.attempts === undefined
+              ? undefined
+              : item.attempts,
+          isConversational:
+            item.role === 'assistant' && item.attempts === 0,
+        }))
+        setMessages(restored)
+      })
+      .catch((error) => {
+        if (active) addToast(getMessage(error), 'error')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedDocument, token])
 
   return (
     <section aria-label="Chat workspace" className="page-content">
@@ -147,7 +188,7 @@ export function ChatPage({ selectedDocument, onBrowseDocuments }: ChatPageProps)
                 {message.role === 'user' ? 'You' : 'Self-RAG'}
               </div>
               <p>{message.content}</p>
-              {message.role === 'assistant' && (
+              {message.role === 'assistant' && !message.isConversational && (
                 <div
                   className={`answer-evidence answer-evidence--${message.isSufficient ? 'sufficient' : 'insufficient'}`}
                 >
