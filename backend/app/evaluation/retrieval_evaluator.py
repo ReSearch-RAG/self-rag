@@ -3,6 +3,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
+from typing import Optional
 
 from app.generation.llm import generate_text
 
@@ -47,7 +48,7 @@ def _parse_evaluation_response(raw: str) -> dict:
 
 def _call_evaluator_with_retry(prompt: str, max_attempts: int = 3) -> dict:
     """Call the LLM evaluator with simple exponential backoff on failure."""
-    last_exc: Exception | None = None
+    last_exc: Optional[Exception] = None
     for attempt in range(1, max_attempts + 1):
         try:
             response = generate_text(prompt, max_output_tokens=512)
