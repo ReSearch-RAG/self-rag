@@ -21,6 +21,7 @@ export interface ChatResponse {
   answer: string
   is_sufficient: boolean
   attempts: number
+  is_conversational?: boolean
 }
 
 export interface ChatMessage {
@@ -29,6 +30,20 @@ export interface ChatMessage {
   content: string
   isSufficient?: boolean
   attempts?: number
+  isConversational?: boolean
+}
+
+export interface ChatHistoryMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  is_sufficient?: boolean | null
+  attempts?: number | null
+}
+
+export interface ChatHistoryResponse {
+  document_id: number
+  messages: ChatHistoryMessage[]
 }
 
 /* Auth */
@@ -53,4 +68,20 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string
   password: string
+}
+
+/* Dashboard Conversations */
+
+export interface ConversationSummary {
+  conversation_id: number
+  document_id: number
+  document_name: string
+  title: string
+  preview: string
+  updated_at: string
+  message_count: number
+}
+
+export interface ConversationListResponse {
+  conversations: ConversationSummary[]
 }
