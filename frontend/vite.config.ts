@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '^/(health|documents|chat|queries)(/|$)': {
+      '^/(health|auth|documents|chat|queries)(/|$)': {
         target: 'http://localhost:8009',
         changeOrigin: true,
       },

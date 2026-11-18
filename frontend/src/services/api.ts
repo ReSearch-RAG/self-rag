@@ -1,7 +1,11 @@
 import type {
+  AuthTokenResponse,
   ChatResponse,
   Document,
   HealthResponse,
+  LoginPayload,
+  RegisterPayload,
+  User,
 } from '../types'
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
@@ -51,11 +55,30 @@ function getErrorMessage(payload: unknown): string | undefined {
 async function request<T>(
   path: string,
   options?: RequestInit,
+  token?: string,
 ): Promise<T> {
   let response: Response
 
+  const headers: Record<string, string> = {}
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  // Merge caller-supplied headers without overwriting the auth header
+  if (options?.headers) {
+    const incoming = options.headers as Record<string, string>
+    Object.assign(headers, incoming)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+  }
+
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, options)
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      headers,
+    })
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw error
@@ -97,32 +120,59 @@ async function request<T>(
   return payload as T
 }
 
+/* ── Public API helpers ────────────────────────────────────────── */
+
 export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health')
 }
 
-export function getDocuments(): Promise<Document[]> {
-  return request<Document[]>('/documents/')
+export function register(payload: RegisterPayload): Promise<User> {
+  return request<User>('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
-export function uploadDocument(file: File, userId: number): Promise<Document> {
+export function login(payload: LoginPayload): Promise<AuthTokenResponse> {
+  return request<AuthTokenResponse>('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getMe(token: string): Promise<User> {
+  return request<User>('/auth/me', {}, token)
+}
+
+export function getDocuments(token: string): Promise<Document[]> {
+  return request<Document[]>('/documents/', {}, token)
+}
+
+export function uploadDocument(file: File, token: string): Promise<Document> {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('user_id', String(userId))
 
-  return request<Document>('/documents/upload', {
-    method: 'POST',
-    body: formData,
-  })
+  return request<Document>(
+    '/documents/upload',
+    { method: 'POST', body: formData },
+    token,
+  )
 }
 
 export function sendChatMessage(
   documentId: number,
   message: string,
+  token: string,
 ): Promise<ChatResponse> {
-  return request<ChatResponse>('/chat/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ document_id: documentId, message }),
-  })
+  return request<ChatResponse>(
+    '/chat/',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_id: documentId, message }),
+    },
+    token,
+  )
 }
