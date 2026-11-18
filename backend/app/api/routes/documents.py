@@ -3,9 +3,10 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import File, Form, UploadFile
+from fastapi import File, UploadFile
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
 from app.db.models.user import User
 from app.ingestion.pipeline import ingest_document
 from app.storage.r2_storage import R2Storage
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.db.models.chunk import Chunk
 from app.db.database import get_db
 from app.db.models.document import Document
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
@@ -32,35 +34,44 @@ class DocumentResponse(BaseModel):
 @router.get("/", response_model=List[DocumentResponse])
 def list_documents(
     status: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[DocumentResponse]:
-    query = db.query(Document)
+    """List documents owned by the current user."""
+    query = db.query(Document).filter(Document.user_id == current_user.id)
 
     if status:
         query = query.filter(Document.status == status)
 
     documents = query.order_by(Document.created_at.desc()).all()
     return documents
+
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 def get_document(
     document_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentResponse:
+    """Get a document's metadata (must be owned by the current user)."""
     document = (
         db.query(Document)
-        .filter(Document.id == document_id)
+        .filter(
+            Document.id == document_id,
+            Document.user_id == current_user.id,
+        )
         .first()
     )
 
     if document is None:
-        from fastapi import HTTPException
-
         raise HTTPException(
             status_code=404,
             detail="Document not found",
         )
 
     return document
+
+
 class ChunkResponse(BaseModel):
     id: int
     document_id: int
@@ -77,11 +88,16 @@ class ChunkResponse(BaseModel):
 )
 def list_document_chunks(
     document_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[ChunkResponse]:
+    """List chunks for a document (must be owned by the current user)."""
     document = (
         db.query(Document)
-        .filter(Document.id == document_id)
+        .filter(
+            Document.id == document_id,
+            Document.user_id == current_user.id,
+        )
         .first()
     )
 
@@ -100,23 +116,22 @@ def list_document_chunks(
 
     return chunks
 
+
 @router.post("/upload", response_model=DocumentResponse, status_code=201)
 def upload_document(
     file: UploadFile = File(...),
-    user_id: int = Form(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentResponse:
+    """Upload and ingest a PDF document.
+
+    The document is associated with the authenticated user (no need to
+    pass ``user_id`` manually).
+    """
     if not file.filename or Path(file.filename).suffix.lower() != ".pdf":
         raise HTTPException(
             status_code=400,
             detail="Only PDF files are supported.",
-        )
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found.",
         )
 
     temp_path = None
@@ -148,7 +163,7 @@ def upload_document(
             )
 
         document = Document(
-            user_id=user_id,
+            user_id=current_user.id,
             filename=Path(file.filename).name,
             storage_path=object_key,
             file_type="pdf",
