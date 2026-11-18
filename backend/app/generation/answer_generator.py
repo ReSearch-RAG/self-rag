@@ -1,12 +1,17 @@
+import logging
 from typing import List, Tuple
 
 from app.db.models.chunk import Chunk
+from app.generation.context_builder import build_context
 from app.generation.llm import generate_text
+
+logger = logging.getLogger(__name__)
 
 
 def generate_answer(
     query: str,
     chunks: List[Tuple[Chunk, float]],
+    max_context_tokens: int = 6000,
 ) -> str:
     """Generate an evidence-grounded answer from retrieved chunks."""
     if not query or not query.strip():
@@ -18,19 +23,13 @@ def generate_answer(
             "to answer your question."
         )
 
-    context_parts = []
+    context = build_context(chunks, max_tokens=max_context_tokens)
 
-    for chunk, score in chunks:
-        context_parts.append(
-            "[Chunk ID: {} | Page: {} | Section: {}]\n{}".format(
-                chunk.id,
-                chunk.page_number or "Unknown",
-                chunk.section or "Unknown",
-                chunk.text,
-            )
+    if not context:
+        return (
+            "I couldn't find relevant evidence in this document "
+            "to answer your question."
         )
-
-    context = "\n\n".join(context_parts)
 
     prompt = """You are a careful research-paper assistant.
 
