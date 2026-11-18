@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.auth.dependencies import get_current_user
 from app.db.models.user import User
@@ -43,7 +44,7 @@ def _verify_document_ownership(
     return document
 
 
-def _to_conflict_result(conflict) -> ConflictDetectionResult | None:
+def _to_conflict_result(conflict) -> Optional[ConflictDetectionResult]:
     if conflict is None:
         return None
     return ConflictDetectionResult(
