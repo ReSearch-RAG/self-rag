@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models.document import Document
+from app.db.models.user import User
 from app.generation.answer_generator import generate_answer
 from app.orchestration.query_orchestrator import run_query_retrieval
 from app.schemas.chat import ChatRequest, ChatResponse
@@ -13,11 +15,15 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("/", response_model=ChatResponse)
 def chat_with_document(
     request: ChatRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChatResponse:
     document = (
         db.query(Document)
-        .filter(Document.id == request.document_id)
+        .filter(
+            Document.id == request.document_id,
+            Document.user_id == current_user.id,
+        )
         .first()
     )
 
