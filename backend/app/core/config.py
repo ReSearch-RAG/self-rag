@@ -13,5 +13,14 @@ class Settings:
     R2_ENDPOINT_URL = os.getenv("R2_ENDPOINT_URL")
     R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
 
+    # Auth
+    JWT_SECRET_KEY = os.getenv(
+        "JWT_SECRET_KEY",
+        "change-me-in-production-use-a-real-secret",
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
+    )
+
 
 settings = Settings()
