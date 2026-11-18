@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,8 @@ class RetrievalRequest(BaseModel):
     document_id: int = Field(gt=0)
     query: str = Field(min_length=1, max_length=4000)
     top_k: int = Field(default=5, ge=1, le=20)
+    min_relevance: float = Field(default=0.6, ge=0.0, le=1.0)
+    min_coverage: float = Field(default=0.7, ge=0.0, le=1.0)
 
 
 class RetrievedChunk(BaseModel):
@@ -34,6 +36,8 @@ class SelfCorrectingRetrievalResponse(BaseModel):
     missing_information: List[str]
     evaluation_reason: str
     attempts: int
+    trace: Dict[str, float] = Field(default_factory=dict)
+    conflict_detection: Optional["ConflictDetectionResult"] = None
 
 
 class ClaimVerificationResult(BaseModel):
@@ -65,3 +69,4 @@ class AnswerResponse(BaseModel):
         default_factory=list
     )
     conflict_detection: Optional[ConflictDetectionResult] = None
+    trace: Dict[str, float] = Field(default_factory=dict)
