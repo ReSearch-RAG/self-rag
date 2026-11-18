@@ -1,10 +1,14 @@
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.db.models.chunk import Chunk
 from app.ingestion.chunker import chunk_pages
-from app.ingestion.embedder import Embedder
+from app.ingestion.embedder import get_embedder
 from app.ingestion.normalizer import normalize_pages
 from app.ingestion.parser import parse_pdf
+
+logger = logging.getLogger(__name__)
 
 
 def ingest_document(
@@ -18,7 +22,11 @@ def ingest_document(
 
     chunks = chunk_pages(normalized_pages)
 
-    embedder = Embedder()
+    if not chunks:
+        logger.warning("No chunks produced for document_id=%d", document_id)
+        return []
+
+    embedder = get_embedder()
 
     texts = [chunk["text"] for chunk in chunks]
     embeddings = embedder.embed(texts)
@@ -30,7 +38,7 @@ def ingest_document(
             document_id=document_id,
             text=chunk["text"],
             page_number=chunk["page_number"],
-            section=chunk["section"],
+            section=chunk.get("section"),
             embedding=embedding,
         )
 
@@ -39,4 +47,9 @@ def ingest_document(
 
     db.commit()
 
+    logger.info(
+        "Ingested %d chunks for document_id=%d",
+        len(chunk_records),
+        document_id,
+    )
     return chunk_records
