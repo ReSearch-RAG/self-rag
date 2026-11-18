@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE INDEX chunks_embedding_hnsw_idx
+        CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
         ON chunks
         USING hnsw (embedding vector_cosine_ops)
     """)

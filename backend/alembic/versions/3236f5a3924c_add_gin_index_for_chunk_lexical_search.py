@@ -14,7 +14,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE INDEX chunks_text_search_gin_idx
+        CREATE INDEX IF NOT EXISTS chunks_text_search_gin_idx
         ON chunks
         USING GIN (to_tsvector('english', text))
     """)
