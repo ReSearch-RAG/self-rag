@@ -8,7 +8,7 @@ especially for technical/domain-specific vocabulary.
 import json
 import logging
 import re
-from typing import Callable
+from typing import Callable, Optional
 
 from app.generation.llm import generate_text
 
@@ -19,7 +19,7 @@ _FENCE_RE = re.compile(r"```(?:json)?\s*|\s*```", re.IGNORECASE)
 
 def expand_query(
     query: str,
-    generate: Callable[[str], str] | None = None,
+    generate: Optional[Callable[[str], str]] = None,
     max_expansions: int = 3,
 ) -> list[str]:
     """
