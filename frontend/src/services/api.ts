@@ -6,6 +6,8 @@ import type {
   LoginPayload,
   RegisterPayload,
   User,
+  ChatHistoryResponse,
+  ConversationListResponse,
 } from '../types'
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
@@ -173,6 +175,29 @@ export function sendChatMessage(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ document_id: documentId, message }),
     },
+    token,
+  )
+}
+
+export function getChatHistory(
+  documentId: number,
+  token: string,
+): Promise<ChatHistoryResponse> {
+  return request<ChatHistoryResponse>(
+    `/chat/${documentId}/history`,
+    {},
+    token,
+  )
+}
+
+export function getAllChatHistory(token: string): Promise<ChatHistoryResponse> {
+  return request<ChatHistoryResponse>('/chat/history', {}, token)
+}
+
+export function getConversations(token: string): Promise<ConversationListResponse> {
+  return request<ConversationListResponse>(
+    '/chat/conversations',
+    {},
     token,
   )
 }
