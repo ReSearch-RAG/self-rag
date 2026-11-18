@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { sendChatMessage } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import type { ChatMessage, Document } from '../types'
 
 interface ChatPageProps {
@@ -11,40 +12,70 @@ function getMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'An unexpected error occurred.'
 }
 
-export function ChatPage({
-  selectedDocument,
-  onBrowseDocuments,
-}: ChatPageProps) {
+interface ToastItem {
+  id: number
+  message: string
+  type: 'error' | 'success'
+}
+
+export function ChatPage({ selectedDocument, onBrowseDocuments }: ChatPageProps) {
+  const { token } = useAuth()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
   const requestInProgress = useRef(false)
   const nextMessageId = useRef(0)
+  const nextToastId = useRef(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canChat = selectedDocument?.status === 'processed'
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isSending])
+
+  function addToast(message: string, type: ToastItem['type'] = 'error') {
+    const id = ++nextToastId.current
+    setToasts((t) => [...t, { id, message, type }])
+    setTimeout(() => {
+      setToasts((t) => t.filter((item) => item.id !== id))
+    }, 5000)
+  }
+
+  // Auto-resize textarea
+  function handleDraftChange(value: string) {
+    setDraft(value)
+    const el = textareaRef.current
+    if (el) {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    }
+  }
 
   async function submitMessage() {
     const message = draft.trim()
-    if (
-      !message ||
-      !selectedDocument ||
-      !canChat ||
-      requestInProgress.current
-    ) {
+    if (!message || !selectedDocument || !canChat || requestInProgress.current || !token) {
       return
     }
 
     requestInProgress.current = true
     setDraft('')
-    setError(null)
     setIsSending(true)
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
     setMessages((current) => [
       ...current,
       { id: ++nextMessageId.current, role: 'user', content: message },
     ])
 
     try {
-      const response = await sendChatMessage(selectedDocument.id, message)
+      const response = await sendChatMessage(selectedDocument.id, message, token)
       setMessages((current) => [
         ...current,
         {
@@ -56,7 +87,7 @@ export function ChatPage({
         },
       ])
     } catch (requestError) {
-      setError(getMessage(requestError))
+      addToast(getMessage(requestError), 'error')
     } finally {
       requestInProgress.current = false
       setIsSending(false)
@@ -85,6 +116,7 @@ export function ChatPage({
           {!selectedDocument && (
             <button
               className="primary-button browse-button"
+              id="browse-documents-button"
               onClick={onBrowseDocuments}
               type="button"
             >
@@ -93,18 +125,13 @@ export function ChatPage({
           )}
           {selectedDocument && !canChat && (
             <div className="backend-note">
-              <svg
-                aria-hidden="true"
-                className="header-icon"
-                viewBox="0 0 24 24"
-              >
+              <svg aria-hidden="true" className="header-icon" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 11v5M12 8h.01" />
               </svg>
               <span>
                 {selectedDocument.filename} is {selectedDocument.status}.
-                Chat is available only when the backend reports the document
-                as processed.
+                Chat is available only when the backend reports the document as processed.
               </span>
             </div>
           )}
@@ -124,39 +151,49 @@ export function ChatPage({
                 <div
                   className={`answer-evidence answer-evidence--${message.isSufficient ? 'sufficient' : 'insufficient'}`}
                 >
+                  <svg aria-hidden="true" className="header-icon" viewBox="0 0 24 24" style={{ width: 13, height: 13, flex: '0 0 auto' }}>
+                    {message.isSufficient
+                      ? <path d="M20 6L9 17l-5-5" />
+                      : <><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></>}
+                  </svg>
                   {message.isSufficient
                     ? 'Evidence evaluated as sufficient'
-                    : 'Insufficient evidence — this is not a verified answer'}
+                    : 'Insufficient evidence — not a verified answer'}
                   {message.attempts !== undefined &&
                     ` · ${message.attempts} retrieval ${message.attempts === 1 ? 'attempt' : 'attempts'}`}
                 </div>
               )}
             </article>
           ))}
+
+          {/* Typing indicator */}
           {isSending && (
-            <p aria-live="polite" className="list-state">
-              Retrieving evidence and preparing an answer…
-            </p>
+            <div className="typing-indicator" aria-live="polite" aria-label="Thinking…">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
           )}
+
+          <div ref={messagesEndRef} />
         </div>
       )}
 
-      {error && (
-        <p className="inline-error chat-error" role="alert">
-          {error}
-        </p>
-      )}
-
+      {/* Composer */}
       <div className="composer-area">
         {selectedDocument && (
           <p className="active-document">
-            Document: <strong>{selectedDocument.filename}</strong>
+            <svg aria-hidden="true" className="header-icon" viewBox="0 0 24 24" style={{ width: 13, height: 13 }}>
+              <path d="M5 3.75h9l5 5v11.5H5z" />
+              <path d="M14 3.75v5h5M8.5 13h7M8.5 16.5h7" />
+            </svg>
+            <strong>{selectedDocument.filename}</strong>
           </p>
         )}
         <form
           className="composer"
-          onSubmit={(event) => {
-            event.preventDefault()
+          onSubmit={(e) => {
+            e.preventDefault()
             void submitMessage()
           }}
         >
@@ -164,17 +201,17 @@ export function ChatPage({
             aria-label="Message"
             className="composer-input"
             disabled={!canChat || isSending}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
+            id="chat-input"
+            onChange={(e) => handleDraftChange(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
                 void submitMessage()
               }
             }}
-            placeholder={
-              canChat ? 'Ask about this document…' : 'Select a processed document'
-            }
+            placeholder={canChat ? 'Ask about this document…' : 'Select a processed document'}
             maxLength={4000}
+            ref={textareaRef}
             rows={1}
             value={draft}
           />
@@ -182,6 +219,7 @@ export function ChatPage({
             aria-label="Send message"
             className="composer-action"
             disabled={!canChat || isSending || !draft.trim()}
+            id="chat-send-button"
             type="submit"
           >
             <svg aria-hidden="true" className="header-icon" viewBox="0 0 24 24">
@@ -190,9 +228,22 @@ export function ChatPage({
           </button>
         </form>
         <p className="composer-footnote">
-          Answers use backend retrieval and evaluation. Conversation history is
-          kept only in this page and is not persisted by the backend.
+          Answers use backend retrieval and self-evaluation. Conversation history is kept only in this session.
         </p>
+      </div>
+
+      {/* Toast notifications */}
+      <div className="toast-container" aria-live="polite">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast--${t.type}`} role="alert">
+            <svg aria-hidden="true" className="toast-icon" viewBox="0 0 24 24">
+              {t.type === 'error'
+                ? <><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" /></>
+                : <path d="M20 6L9 17l-5-5" />}
+            </svg>
+            {t.message}
+          </div>
+        ))}
       </div>
     </section>
   )
