@@ -26,5 +26,4 @@ pdfplumber
 
 # Auth
 python-jose[cryptography]
-passlib[bcrypt]
 bcrypt
