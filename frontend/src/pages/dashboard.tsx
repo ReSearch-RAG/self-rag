@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getDocuments } from '../services/api'
+import { getConversations, getDocuments } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-import type { Document, Page } from '../types'
+import type { ConversationSummary, Document, Page } from '../types'
 
 interface DashboardPageProps {
   onNavigate: (page: Page) => void
@@ -11,16 +11,32 @@ interface DashboardPageProps {
 export function DashboardPage({ onNavigate, onSelectDocument }: DashboardPageProps) {
   const { user, token } = useAuth()
   const [documents, setDocuments] = useState<Document[]>([])
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!token) return
     let active = true
-    getDocuments(token)
-      .then((docs) => { if (active) setDocuments(docs) })
-      .catch(() => { /* silent — just show 0 */ })
-      .finally(() => { if (active) setIsLoading(false) })
-    return () => { active = false }
+
+    Promise.all([getDocuments(token), getConversations(token)])
+      .then(([docs, history]) => {
+        if (!active) return
+        setDocuments(docs)
+        setConversations(history.conversations)
+      })
+      .catch(() => {
+        if (!active) return
+        getDocuments(token)
+          .then((docs) => setDocuments(docs))
+          .catch(() => undefined)
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [token])
 
   const firstName = user?.name?.split(' ')[0] ?? 'there'
@@ -107,6 +123,54 @@ export function DashboardPage({ onNavigate, onSelectDocument }: DashboardPagePro
               </li>
             ))}
           </ul>
+        )}
+
+        {/* Recent conversations */}
+        <h2 className="dashboard-section-title">Recent conversations</h2>
+        {isLoading && (
+          <div className="dashboard-conversation-list" aria-label="Loading conversations">
+            {[1, 2].map((n) => (
+              <div key={n} className="skeleton" style={{ height: 74, borderRadius: 10 }} aria-hidden="true" />
+            ))}
+          </div>
+        )}
+        {!isLoading && conversations.length === 0 && (
+          <p className="list-state">No conversations yet. Start by chatting with a document.</p>
+        )}
+        {!isLoading && conversations.length > 0 && (
+          <div className="dashboard-conversation-list" aria-label="Recent conversations">
+            {conversations.slice(0, 6).map((conversation) => {
+              const document = documents.find((doc) => doc.id === conversation.document_id)
+              return (
+                <button
+                  className="dashboard-conversation-card"
+                  key={conversation.conversation_id}
+                  onClick={() => {
+                    if (document) {
+                      onSelectDocument(document)
+                      onNavigate('chat')
+                    }
+                  }}
+                  type="button"
+                >
+                  <span className="conversation-icon" aria-hidden="true">
+                    <svg className="header-icon" viewBox="0 0 24 24">
+                      <path d="M4 5.5h16v11H9l-5 3z" />
+                      <path d="M8 10h8M8 13.5h5" />
+                    </svg>
+                  </span>
+                  <span className="conversation-main">
+                    <span className="conversation-title">{conversation.document_name}</span>
+                    <span className="conversation-preview">{conversation.preview}</span>
+                  </span>
+                  <span className="conversation-meta">
+                    <span>{new Date(conversation.updated_at).toLocaleDateString()}</span>
+                    <span>{conversation.message_count} messages</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         )}
 
         {/* CTA */}
