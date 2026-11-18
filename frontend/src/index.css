@@ -1,25 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
   color: #e9e5de;
-  background: #1b1a18;
+  background: #111010;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --sans: 'Segoe UI', sans-serif;
+  --sans: 'Inter', 'Segoe UI', sans-serif;
   --serif: Georgia, 'Times New Roman', serif;
-  --canvas: #1b1a18;
-  --sidebar: #151412;
-  --surface: #211f1c;
-  --line: #302e2a;
-  --line-strong: #45413a;
-  --text-primary: #e9e5de;
-  --text-secondary: #aaa49b;
-  --text-muted: #777169;
-  --accent: #d49a71;
-  --status-online: #83a98b;
-  --status-offline: #bd796e;
+
+  /* Surfaces */
+  --canvas: #111010;
+  --sidebar: #0d0c0b;
+  --surface: #1a1917;
+  --surface-hover: #201e1c;
+  --surface-raised: #242220;
+
+  /* Borders */
+  --line: #2a2825;
+  --line-strong: #3d3a35;
+  --line-accent: #5a4535;
+
+  /* Text */
+  --text-primary: #f0ece4;
+  --text-secondary: #a8a299;
+  --text-muted: #6a6460;
+
+  /* Accent — warm amber */
+  --accent: #d4956a;
+  --accent-dim: #9a6440;
+  --accent-glow: rgba(212, 149, 106, 0.18);
+  --accent-glow-strong: rgba(212, 149, 106, 0.32);
+
+  /* Status */
+  --status-online: #7aad85;
+  --status-offline: #c07068;
+  --status-pending: #c9a855;
+
+  /* Gradients */
+  --gradient-auth: radial-gradient(ellipse at 30% 20%, rgba(212,149,106,0.12) 0%, transparent 60%),
+                   radial-gradient(ellipse at 70% 80%, rgba(100,80,60,0.10) 0%, transparent 55%),
+                   #111010;
+  --gradient-sidebar: linear-gradient(180deg, #0e0d0c 0%, #0a0908 100%);
 }
 
 * {
@@ -46,4 +71,51 @@ button {
 ::selection {
   background: #70523e;
   color: #fffaf3;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+
+@keyframes bounce3dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
