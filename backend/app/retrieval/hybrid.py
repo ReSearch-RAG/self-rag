@@ -1,11 +1,14 @@
-
+import logging
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy.orm import Session
 
 from app.db.models.chunk import Chunk
 from app.retrieval.lexical import lexical_search
 from app.retrieval.vector import vector_search
+
+logger = logging.getLogger(__name__)
 
 
 def hybrid_search(
@@ -18,10 +21,12 @@ def hybrid_search(
     rrf_k: int = 60,
 ) -> list[tuple[Chunk, float]]:
     """
-    Combine vector and lexical retrieval using Reciprocal Rank Fusion.
+    Combine vector and lexical retrieval using Reciprocal Rank Fusion (RRF).
+
+    Both searches run in parallel via a thread pool to reduce latency.
 
     Returns:
-        A list of (Chunk, fused_score) tuples, sorted by fused score.
+        A list of (Chunk, fused_score) tuples, sorted by fused score descending.
     """
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
@@ -32,19 +37,31 @@ def hybrid_search(
     if rrf_k < 1:
         raise ValueError("rrf_k must be at least 1")
 
-    vector_results = vector_search(
-        db=db,
-        query_embedding=query_embedding,
-        document_id=document_id,
-        top_k=candidate_k,
-    )
+    # Run both searches in parallel
+    vector_results: list[tuple[Chunk, float]] = []
+    lexical_results: list[tuple[Chunk, float]] = []
 
-    lexical_results = lexical_search(
-        db=db,
-        query=query,
-        document_id=document_id,
-        top_k=candidate_k,
-    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        future_vector = executor.submit(
+            vector_search,
+            db,
+            query_embedding,
+            document_id,
+            candidate_k,
+        )
+        future_lexical = executor.submit(
+            lexical_search,
+            db,
+            query,
+            document_id,
+            candidate_k,
+        )
+
+        for future in as_completed([future_vector, future_lexical]):
+            if future is future_vector:
+                vector_results = future.result()
+            else:
+                lexical_results = future.result()
 
     scores: dict[int, float] = defaultdict(float)
     chunks: dict[int, Chunk] = {}
@@ -58,6 +75,13 @@ def hybrid_search(
         scores,
         key=lambda chunk_id: scores[chunk_id],
         reverse=True,
+    )
+
+    logger.debug(
+        "Hybrid search: %d vector + %d lexical → %d fused candidates",
+        len(vector_results),
+        len(lexical_results),
+        len(ranked_chunks),
     )
 
     return [

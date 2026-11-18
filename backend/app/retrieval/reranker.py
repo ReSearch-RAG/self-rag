@@ -1,9 +1,12 @@
+import logging
+import math
 from functools import lru_cache
 
 from FlagEmbedding import FlagReranker
 
 from app.db.models.chunk import Chunk
 
+logger = logging.getLogger(__name__)
 
 MODEL_NAME = "BAAI/bge-reranker-v2-m3"
 
@@ -11,7 +14,13 @@ MODEL_NAME = "BAAI/bge-reranker-v2-m3"
 @lru_cache(maxsize=1)
 def get_reranker() -> FlagReranker:
     """Load the reranker model once and reuse it."""
+    logger.info("Loading reranker model %s", MODEL_NAME)
     return FlagReranker(MODEL_NAME, use_fp16=False)
+
+
+def _sigmoid(x: float) -> float:
+    """Map an unbounded logit to [0, 1]."""
+    return 1.0 / (1.0 + math.exp(-x))
 
 
 def rerank_chunks(
@@ -20,7 +29,7 @@ def rerank_chunks(
     top_k: int = 5,
 ) -> list[tuple[Chunk, float]]:
     """
-    Rerank candidate chunks against a query.
+    Rerank candidate chunks against a query using a cross-encoder.
 
     Args:
         query: The user's search query.
@@ -28,7 +37,8 @@ def rerank_chunks(
         top_k: Maximum number of reranked chunks to return.
 
     Returns:
-        (Chunk, reranker score) pairs sorted by descending score.
+        (Chunk, normalized_reranker_score) pairs sorted by descending score.
+        Scores are in [0, 1] after sigmoid normalization.
     """
     if not query.strip():
         raise ValueError("query must not be empty")
@@ -54,7 +64,7 @@ def rerank_chunks(
         )
 
     reranked = [
-        (chunk, float(score))
+        (chunk, _sigmoid(float(score)))
         for (chunk, _), score in zip(candidates, scores)
     ]
 
