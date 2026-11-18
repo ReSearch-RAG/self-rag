@@ -8,7 +8,8 @@ from app.db.database import get_db
 from app.db.models.conversation import Conversation, Message
 from app.db.models.document import Document
 from app.db.models.user import User
-from app.generation.answer_generator import generate_answer
+from app.db.models.chunk import Chunk
+from app.generation.answer_generator import generate_answer, generate_document_summary
 from app.orchestration.query_orchestrator import run_query_retrieval
 from app.schemas.chat import (
     ChatHistoryResponse,
@@ -71,6 +72,47 @@ def chat_with_document(
             is_sufficient=True,
             attempts=0,
             is_conversational=True,
+        )
+
+    summary_request = _is_document_summary_request(message)
+    if summary_request:
+        chunks = (
+            db.query(Chunk)
+            .filter(Chunk.document_id == request.document_id)
+            .order_by(Chunk.page_number.asc(), Chunk.id.asc())
+            .limit(24)
+            .all()
+        )
+        if not chunks:
+            answer = "I could not find any text extracted from this PDF."
+            effective_sufficient = False
+        else:
+            try:
+                answer = generate_document_summary(
+                    document_name=document.filename,
+                    chunks=[(chunk, 1.0) for chunk in chunks],
+                )
+                effective_sufficient = True
+            except (RuntimeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Answer generation failed. Check the Gemini configuration.",
+                ) from exc
+
+        _save_chat_pair(
+            db=db,
+            conversation=conversation,
+            user_message=message,
+            assistant_message=answer,
+            is_sufficient=effective_sufficient,
+            attempts=1,
+        )
+        return ChatResponse(
+            document_id=request.document_id,
+            message=message,
+            answer=answer,
+            is_sufficient=effective_sufficient,
+            attempts=1,
         )
 
     try:
@@ -293,3 +335,23 @@ def _save_chat_pair(
         attempts=attempts,
     ))
     db.commit()
+
+
+def _is_document_summary_request(message: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9 ]", "", message.lower()).strip()
+    document_words = ("pdf", "document", "file", "thi", "this")
+    summary_words = (
+        "about",
+        "summary",
+        "summarize",
+        "summarise",
+        "overview",
+        "main topics",
+        "what is",
+        "whats",
+        "explain",
+        "tell me",
+    )
+    has_document_word = any(word in normalized for word in document_words)
+    has_summary_word = any(word in normalized for word in summary_words)
+    return has_document_word and has_summary_word
